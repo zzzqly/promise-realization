@@ -1,0 +1,141 @@
+Uncaught (in promise)
+该报错是因为失败的promise没有捕获，加上catch或finally就好了
+记得在写promise末尾要加上catch
+
+手写promise:
+new Promise(executor)
+executor接收resolve、reject两个参数
+executor的执行可能会抛错，所以要try catch，抛错就直接失败
+
+// then返回值问题, 返回一个新promise, 该promise的状态与处理函数的返回值有关
+立即返回一个新的 Promise 对象，该对象始终处于待定状态，无论当前 Promise 对象的状态如何。
+onFulfilled 和 onRejected 处理函数之一将被执行，以处理当前 Promise 对象的兑现或拒绝。即使当前 Promise 对象已经敲定，这个调用也总是异步发生的。返回的 Promise 对象（称之为 p）的行为取决于处理函数的执行结果，遵循一组特定的规则。如果处理函数：
+1.返回一个值：p 以该返回值作为其兑现值。
+2.没有返回任何值：p 以 undefined 作为其兑现值。
+3.抛出一个错误：p 抛出的错误作为其拒绝值。
+4.返回一个已兑现的 Promise 对象：p 以该 Promise 的值作为其兑现值。
+5.返回一个已拒绝的 Promise 对象：p 以该 Promise 的值作为其拒绝值。
+6.返回另一个待定的 Promise 对象：p 保持待定状态，并在该 Promise 对象被兑现/拒绝后立即以该 Promise 的值作为其兑现/拒绝值。
+
+
+promise.js是自己写的，promiseCopy.js是复制粘贴的
+
+
+
+
+
+
+
+Iterator 代表一个抽象类，自身不提供 next() 方法，因此其本身并不用于实例化，旨在被创建迭代器的其他类继承。Iterator 的所有子类必须按照迭代器协议的要求实现 next() 方法。
+Generator 是 Iterator 的子类，且是隐藏的，其构造函数并不是全局可用的，window上并不存在，Generator 的实例必须从生成器函数返回
+
+迭代器、生成器
+Iterator对象是一个符合迭代器协议的对象，其提供了 next() 方法用以返回迭代器结果对象，我们通常叫它迭代器；Generator对象，由生成器函数返回，我们通常叫它生成器，它是一个特殊的迭代器
+
+生成器函数：使用 function* 声明或表达式 来定义生成器函数
+备注： 箭头函数不能用来定义生成器函数。
+备注： function 和 * 是两个单独的标记，因此它们可以用空白或换行符分隔。
+function* generator(i) {
+  yield console.log(9);
+  const a = yield i;
+  console.log(a)
+  yield i + 10;
+}
+const gen = generator(10);
+console.log(gen.next().value);
+// Expected output: 10
+console.log(gen.next().value);
+// console.log(a)打印出 undefined，因为这里next没有传值，若传值则为传入的值
+// Expected output: 20
+生成器函数执行，不会执行内部的任何代码，而是返回一种称为 生成器 的 特殊迭代器。
+生成器的 next() 方法，用于 开始或恢复 生成器函数的执行，其返回值是一个对象：{value: 表示yield后跟着的表达式的值，done：布尔值，表示函数是否执行完成}
+
+当生成器的 next() 方法首次被调用时，生成器函数的主体会被执行，直到遇到第一个 yield 表达式暂停
+注意：首次next调用，代码执行到 "yield console.log(9);" 暂停，这里"console.log(9)"会立刻执行，而 "yield console.log(9);" 这个 yield表达式 的值，是在下次调用next(值)传入得到
+
+暂停后，控制权就交给了外部函数，等下次再次调用next时，再恢复执行，直到执行完毕(函数return)，done为true
+
+
+
+
+
+
+Generator可以用来处理异步操作，将异步执行变为同步执行
+function* asyncFun() {
+    let resA = yield PromiseA //promise对象
+    let resB = yield PromiseB //promise对象
+    let resC = yield PromiseC //promise对象
+}
+const gen = asyncFun()
+gen.next().value.then(function(data){
+    gen.next(data).value.then(function(data){
+        gen.next(data).value.then(function(data){
+            gen.next(data) // done: true
+        });
+    });
+});
+
+co模块，中有Generator的自动执行器，不需要我们手动调用next来执行完函数，如：
+function asyncToSyncAndRun(gen){
+  var g = gen(); //此时g为生成器对象
+  
+  function next(data){
+    var result = g.next(data);
+    //注意：前面说过 result的结构，result是一个对象，里面的value对应yield后表达式的返回值
+    //所以result.value是一个Promise对象
+    if (result.done) return result.value;//如果遍历结束，return
+    //未遍历结束，就把下一个next执行放在现在的Promise对象的回调中去
+    result.value.then(function(data){
+      next(data);
+    });
+  }
+  next();//触发next方法~
+}
+//自动执行
+asyncToSyncAndRun(asyncFun)
+
+
+
+async/await的基本概念和使用方法‌：
+‌async‌：用于修饰一个函数，表示该函数是异步的。async函数在被调用时会立即返回一个Promise。
+‌await‌：用于等待一个异步操作的结果。await必须写在async函数中，后面通常跟一个Promise对象。await会暂停async函数的执行，直到Promise兑现或被拒绝‌
+
+async await
+async function 声明创建一个绑定到给定名称的新异步函数。可以使用 async function 表达式来定义异步函数。
+await 关键字只在常规 JavaScript 代码中的异步函数内有效。如果你在异步函数体之外使用它，则会抛出 SyntaxError。
+await 可以单独与 JavaScript 模块一起使用。
+async/await 的目的在于简化使用基于 promise 的 API 时所需的语法。async/await 的行为就好像搭配使用了生成器和 promise。
+
+async function 声明创建一个 AsyncFunction 对象。每次调用异步函数时，都会返回一个新的 Promise 对象，该对象将会被解决为异步函数的返回值，或者被拒绝为异步函数中未捕获的异常。
+异步函数可以包含零个或者多个 await 表达式。await 表达式通过暂停执行使返回 promise 的函数表现得像同步函数一样，直到返回的 promise 被兑现或拒绝。返回的 promise 的解决值会被当作该 await 表达式的
+返回值。使用 async/await 关键字就可以使用普通的 try/catch 代码块捕获异步代码中的错误。
+
+
+
+
+async/await 可以说是自带 自动执行器的 Generator
+async function asyncFun() {
+    let resA = await PromiseA //promise对象
+    let resB = await PromiseB //promise对象  // co模块约定，yield命令后面只能是 Thunk 函数或 Promise 对象
+    let resC = await PromiseC //promise对象  // 而await后面，可以是Promise 对象，也可以是原始类型的值
+}
+每个 await 表达式之后的代码可以被认为存在于 .then 回调中。
+
+async函数的返回值是一个Promise，即使其return的不是promise，也会被包装成一个promise
+异步函数总是返回一个 promise。如果一个异步函数的返回值看起来不是 promise，那么它将会被隐式地包装在一个 promise 中。
+例如，请看以下代码：
+async function foo() {
+  return 1;
+}
+类似于：
+function foo() {
+  return Promise.resolve(1);
+}
+
+所以：const p = asyncFun()，这里p这个promise一开始是pending，等函数执行完后(每个 await 表达式之后的代码可以被认为存在于 .then 回调中，这里的then注册回调也已经全部执行完了)，才根据其返回值确定状态
+
+
+
+async/await主要是用来使异步操作可以同步执行，降低了使用的复杂度，使得代码更容易维护和调试‌
+以前是Generator配合co模块来使用，后面出来的async/await（Generator和promise是es6的，async/await是es7的）
+async用来声明异步函数，await可以暂停async函数的执行，直到Promise兑现或被拒绝‌
