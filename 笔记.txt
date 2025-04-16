@@ -142,7 +142,7 @@ async用来声明异步函数，await可以暂停async函数的执行，直到Pr
 
 注意：每个 await 表达式之后的代码可以被认为存在于 .then 的第一个回调中。如果await后的promise失败了-rejected，那么await 表达式之后的代码就不会执行了，因为.then 的第一个回调是在promise成功兑现之后才会执行，失败则执行第二个回调或catch的回调
 
-function uploadChunk() {
+function upload() {
   // return Promise.resolve();
   return new Promise(() => {});
 }
@@ -151,7 +151,7 @@ async function oni() {
   const queue = [];
   while (uploadQueue.length) {
     const task = uploadQueue.shift();
-    queue.push(uploadChunk(task));
+    queue.push(upload(task));
     console.log("pp");
     if (queue.length >= 4) {
       await Promise.race(queue);
@@ -161,6 +161,41 @@ async function oni() {
   console.log(2);
 }
 oni();
-uploadChunk返回的是永远处于pending状态的promise，所以Promise.race(queue)永远处于pending状态
+upload返回的是永远处于pending状态的promise，所以Promise.race(queue)永远处于pending状态
 所以导致：
 这里只会打印四次pp，不会打印2，该async 函数中 await Promise.race(queue); 之后的所有逻辑，都是相当于存在与该promise.then的第一个回调中，可以看到这里while循环也被暂停了
+
+async await能够让异步代码相对的同步执行
+首先async函数根据函数的返回值返回一个promise，如果函数return一个非promise值 a，则相当于 return Promise.resolve(a)；如果返回的是一个promise，则以该promise为返回值；如果内部抛错，则直接返回一个失败的promise，失败的原因就是内部抛出的错误
+然后await能够让异步代码相对的同步执行是什么意思呢？
+答：await会让函数执行到此处时暂停，后面的逻辑相当于都放在了await后面promise的then函数的第一个回调函数，这里的逻辑包括async函数的return。然后js会去执行该async函数调用的下一行代码，直到当前宏任务结束。
+这个过程中如果await后面promise敲定了，那么后续的逻辑（相当于then函数的第一个回调函数），就放到微任务队列中，按照eventloop来执行。需要注意的是如果await后面promise敲定了，但是是失败的，rejected，那么后面的所有逻辑就都不会执行了。
+所以还需要配合try catch来使用，对await后promise失败后，执行失败提示，以及async函数的return。
+function upload() {
+  return Promise.resolve();
+  // return new Promise(() => {});
+}
+async function oni() {
+  try {
+    const uploadQueue = [1, 2, 3, 4, 5];
+    const queue = [];
+    while (uploadQueue.length) {
+      const task = uploadQueue.shift();
+      queue.push(upload(task));
+      if (queue.length >= 4) {
+        await Promise.race(queue);
+        queue.splice(queue.indexOf(task), 1);
+      }
+    }
+    await Promise.reject();
+  } catch (err) {
+    // return 值
+    // or
+    throw new Error(`错误信息`);
+  }
+}
+oni(); // 返回值为一个失败的promise，失败原因为 '错误信息'
+
+此外await也可以使用在一个top level的module中，就是可以使用在esm模块的顶层作用域中，模块之间就类似于函数调用，根模块和所有子模块是一个宏任务，可以把所有关联模块看作是一个个的函数，从最远的模块开始执行，比如A->B->C->D，A是起始模块，D就是最远的那个模块
+从D开始执行，然后依次是CBA，如果其中一个模块有顶层的await，那么该模块执行到await就会暂停，后续的逻辑等于是await后面promise的then函数的第一个回调里的逻辑，等await后面promise兑现后，加入到微任务队列，等所有模块都执行完(所有模块是一个宏任务)，即当前宏任务执行完，也就是
+调用栈清空，然后去清空微任务队列的时候，才会执行到await表达式后面的逻辑
