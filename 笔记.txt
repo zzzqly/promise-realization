@@ -139,3 +139,5 @@ function foo() {
 async/await主要是用来使异步操作可以同步执行，降低了使用的复杂度，使得代码更容易维护和调试‌
 以前是Generator配合co模块来使用，后面出来的async/await（Generator和promise是es6的，async/await是es7的）
 async用来声明异步函数，await可以暂停async函数的执行，直到Promise兑现或被拒绝‌
+
+注意：每个 await 表达式之后的代码可以被认为存在于 .then 的第一个回调中。如果await后的promise失败了-rejected，那么await 表达式之后的代码就不会执行了，因为.then 的第一个回调是在promise成功兑现之后才会执行，失败则执行第二个回调或catch的回调
