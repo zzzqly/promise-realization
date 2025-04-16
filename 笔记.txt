@@ -141,3 +141,26 @@ async/await主要是用来使异步操作可以同步执行，降低了使用的
 async用来声明异步函数，await可以暂停async函数的执行，直到Promise兑现或被拒绝‌
 
 注意：每个 await 表达式之后的代码可以被认为存在于 .then 的第一个回调中。如果await后的promise失败了-rejected，那么await 表达式之后的代码就不会执行了，因为.then 的第一个回调是在promise成功兑现之后才会执行，失败则执行第二个回调或catch的回调
+
+function uploadChunk() {
+  // return Promise.resolve();
+  return new Promise(() => {});
+}
+async function oni() {
+  const uploadQueue = [1, 2, 3, 4, 5, 6, 7, 8];
+  const queue = [];
+  while (uploadQueue.length) {
+    const task = uploadQueue.shift();
+    queue.push(uploadChunk(task));
+    console.log("pp");
+    if (queue.length >= 4) {
+      await Promise.race(queue);
+      queue.splice(queue.indexOf(task), 1);
+    }
+  }
+  console.log(2);
+}
+oni();
+uploadChunk返回的是永远处于pending状态的promise，所以Promise.race(queue)永远处于pending状态
+所以导致：
+这里只会打印四次pp，不会打印2，该async 函数中 await Promise.race(queue); 之后的所有逻辑，都是相当于存在与该promise.then的第一个回调中，可以看到这里while循环也被暂停了
